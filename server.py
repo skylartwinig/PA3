@@ -23,7 +23,6 @@ class Server:
         self.client2Sock = None
         self.client3Sock = None
         self.client4Sock = None
-        self.client5Sock = None
         self.clientSockPortList = [('localhost', 4445), ('localhost', 4446), ('localhost', 4447), ('localhost', 4448), ('localhost', 4449)]
         self.portNum = self.clientSockPortList[int(sys.argv[1]) - 1]
         self.clientSockPortList.remove(self.portNum)
@@ -34,6 +33,8 @@ class Server:
         self.my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.my_socket.bind(self.portNum)
         self.my_socket.listen()
+
+        print(self.my_socket)
 
         terminal = threading.Thread(target= self.get_user_input)
         terminal.start()
@@ -60,6 +61,23 @@ class Server:
                 self.client3Sock.connect(self.clientSockPortList[2])
                 self.client4Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.client4Sock.connect(self.clientSockPortList[3])
-                self.client5Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.client5Sock.connect(self.clientSockPortList[4])
-                
+            
+            else:
+                self.client1Sock.sendall(bytes(user_input, 'utf-8'))
+                self.client2Sock.sendall(bytes(user_input, 'utf-8'))
+                self.client3Sock.sendall(bytes(user_input, 'utf-8'))
+                self.client4Sock.sendall(bytes(user_input, 'utf-8'))
+    
+    def handle_client(self, client_socket):
+        while True:
+            sleep(3)
+            data = client_socket.recv(1024).decode()
+            print(data)
+
+if __name__ == '__main__':
+    # Create 5 server
+    server1 = Server(str('P' + sys.argv[1]))
+
+    # Start clients
+    server1.start()
+
