@@ -6,6 +6,58 @@ from os import _exit
 from sys import stdout
 from typing import Any
 
+class Blog:
+    def __init__(self):
+        self.posts = {}
+        self.comments = {}
+
+    def make_post(self, username, title, content):
+        post_id = len(self.posts) + 1
+        post = {
+            'id': post_id,
+            'username': username,
+            'title': title,
+            'content': content,
+            'comments': []
+        }
+        self.posts[post_id] = post
+
+    def comment_on_post(self, username, title, comment):
+        for post in self.posts.values():
+            if post['title'] == title:
+                comment_id = len(self.comments) + 1
+                new_comment = {
+                    'id': comment_id,
+                    'username': username,
+                    'comment': comment
+                }
+                post['comments'].append(new_comment)
+                self.comments[comment_id] = new_comment
+                break
+
+    def view_all_posts(self):
+        posts = []
+        for post in self.posts.values():
+            posts.append((post['title'], post['username']))
+        return sorted(posts, key=lambda x: x[0])
+
+    def view_posts_by_user(self, username):
+        posts = []
+        for post in self.posts.values():
+            if post['username'] == username:
+                posts.append((post['title'], post['content']))
+        return sorted(posts, key=lambda x: x[0])
+
+    def view_comments_on_post(self, title):
+        comments = []
+        for post in self.posts.values():
+            if post['title'] == title:
+                comments = [(c['comment'], c['username']) for c in post['comments']]
+                break
+        return comments
+
+
+
 class Server:
     def __init__(self,serverId):
         self.serverID = serverId
@@ -26,6 +78,8 @@ class Server:
         self.clientSockPortList = [('localhost', 4445), ('localhost', 4446), ('localhost', 4447), ('localhost', 4448), ('localhost', 4449)]
         self.portNum = self.clientSockPortList[int(sys.argv[1]) - 1]
         self.clientSockPortList.remove(self.portNum)
+
+        self.leaderId = None
 
     def start(self):
 
@@ -62,11 +116,23 @@ class Server:
                 self.client4Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.client4Sock.connect(self.clientSockPortList[3])
             
+            elif user_input.startswith('POST'):
+                if not self.leaderId:
+                    self.leaderElection()
+            
             else:
                 self.client1Sock.sendall(bytes(user_input, 'utf-8'))
                 self.client2Sock.sendall(bytes(user_input, 'utf-8'))
                 self.client3Sock.sendall(bytes(user_input, 'utf-8'))
                 self.client4Sock.sendall(bytes(user_input, 'utf-8'))
+
+    def leaderElection(self):
+        ballot_number = 0
+        self.client1Sock.sendall(bytes('PREPARE ' + self.leaderId, 'utf-8'))
+        self.client2Sock.sendall(bytes('PREPARE ' + self.leaderId, 'utf-8'))
+        self.client3Sock.sendall(bytes('PREPARE ' + self.leaderId, 'utf-8'))
+        self.client4Sock.sendall(bytes('LEAPREPAREDER ' + self.leaderId, 'utf-8'))
+
     
     def handle_client(self, client_socket):
         while True:
