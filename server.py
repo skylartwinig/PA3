@@ -69,6 +69,8 @@ class Server:
         self.proposal_value = None
         self.num_servers = 5
         self.num_of_promises = 0
+        self.num_of_accepts = 0
+        self.my_round = 1
 
         self.my_socket = None
         self.clientSockets = []
@@ -114,36 +116,53 @@ class Server:
                 self.client4Sock.connect(self.clientSockPortList[3])
 
             elif user_input.startswith('post'):
-                if not self.leaderId:
-                    self.leader_election()
-
                 operation = user_input.split(' ', 1)[1]
                 self.pending_operations.append(operation)
+                self.proposal_value = operation
+                ballot_number = (self.my_round, self.serverID, len(self.log))
+                ballot_number = str(ballot_number).replace(' ', '')
 
-                #send to leader then send accept
-                if self.leaderId == self.serverID: #if leader send accept messages to all
-                    self.log.append(operation)
-                    self.accepted_proposal = (0, self.serverID, operation)
-                    self.accepted_round = 0
-                    self.accepted_value = operation
-                    self.proposal_value = operation
-                    self.num_of_promises = 1
-
-                    accept_message = 'ACCEPT ' + str((self.accepted_round, self.serverID, self.accepted_value))
-                    self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
-                    self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
-                    self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
-                    self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
-                else: #if not leader then send the message to the leader
-
-                    accept_message = 'TO LEADER ' + str((self.accepted_round, self.serverID, self.accepted_value))
-                    self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
-                    self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
-                    self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
-                    self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
+                if not self.leaderId: #leader election
+                    prepare_message = 'PREPARE ' + ballot_number
+                    print(prepare_message, " prepare message")
+                    self.client1Sock.sendall(bytes(prepare_message, 'utf-8'))
+                    self.client2Sock.sendall(bytes(prepare_message, 'utf-8'))
+                    self.client3Sock.sendall(bytes(prepare_message, 'utf-8'))
+                    self.client4Sock.sendall(bytes(prepare_message, 'utf-8'))
                 
+                else:
+                    accept_message = 'ACCEPT ' + str(ballot_number) + ' ' + str(self.proposal_value)
+                    self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
+                    self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
+                    self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
+                    self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
+
+
+                # #send to leader then send accept
+                # if self.leaderId == self.serverID: #if leader send accept messages to all
+                #     self.log.append(operation)
+                #     self.accepted_proposal = (0, self.serverID, operation)
+                #     self.accepted_round = 0
+                #     self.accepted_value = operation
+                #     self.proposal_value = operation
+                #     self.num_of_promises = 0
+
+                #     # accept_message = 'ACCEPT ' + str((self.accepted_round, self.serverID, self.accepted_value))
+                #     accept_message = 'ACCEPT ' + str(ballot_number) + ' ' + str(accepted_value)
+                #     self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
+                #     self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
+                #     self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
+                #     self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
+                # else: #if not leader then send the message to the leader
+                #     accept_message = 'TO LEADER ' + str((self.accepted_round, self.serverID, self.accepted_value))
+                #     self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
+                #     self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
+                #     self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
+                #     self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
+                
+
             elif user_input.startswith('blog'):
-                if self.blog:
+                if len(self.blog) > 0:
                     print(self.blog.view_all_posts())
                 else:
                     print("BLOG EMPTY")
@@ -157,17 +176,7 @@ class Server:
                 self.client2Sock.sendall(bytes(user_input, 'utf-8'))
                 self.client3Sock.sendall(bytes(user_input, 'utf-8'))
                 self.client4Sock.sendall(bytes(user_input, 'utf-8'))
-
-    def leader_election(self):
-        ballot_number = (0, self.serverID, len(self.log))
-        ballot_number = str(ballot_number).replace(' ', '')
-        prepare_message = 'PREPARE ' + ballot_number
-        print(prepare_message, " prepare message")
         
-        self.client1Sock.sendall(bytes(prepare_message, 'utf-8'))
-        self.client2Sock.sendall(bytes(prepare_message, 'utf-8'))
-        self.client3Sock.sendall(bytes(prepare_message, 'utf-8'))
-        self.client4Sock.sendall(bytes(prepare_message, 'utf-8'))
 
     def handle_client(self, client_socket):
         while True:
@@ -180,9 +189,9 @@ class Server:
                 print(ballot_number)
                 if self.is_higher_ballot_number(ballot_number):
                     self.leaderId = ballot_number[1]
-                    self.promised_round = ballot_number
+                    self.promised_round = ballot_number[0]
                     ballot_number = str(ballot_number).replace(' ', '')
-                    promise_message = 'PROMISE ' + ballot_number + ' ' + str(self.accepted_round) + ' ' + str(self.accepted_value)
+                    promise_message = 'PROMISE ' + ballot_number + ' ' + str(self.promised_round) 
                     print("sending promise message: " + promise_message)
                     self.client1Sock.sendall(bytes(promise_message, 'utf-8'))
                     self.client2Sock.sendall(bytes(promise_message, 'utf-8'))
@@ -191,16 +200,39 @@ class Server:
 
             
             elif data.startswith('PROMISE'):
-                promise_data = data.split(' ', 3)
+                promise_data = data.split(' ', 2)
                 print(promise_data[1])
                 ballot_number = eval(promise_data[1])
-                # ballot_number = promise_data[1]
-                print(ballot_number[1] , " ", self.serverID)
+
                 if ballot_number[1] == self.serverID:
                     self.num_of_promises += 1
                     if self.num_of_promises >3:
                         self.leaderId = self.serverID
                         print("I AM THE LEADER")
+                        accept_request_message = 'ACCEPT-REQUEST' + str(ballot_number) + ' ' + str(self.proposal_value)
+                        self.client1Sock.sendall(bytes(accept_request_message, 'utf-8'))
+                        self.client2Sock.sendall(bytes(accept_request_message, 'utf-8'))
+                        self.client3Sock.sendall(bytes(accept_request_message, 'utf-8'))
+                        self.client4Sock.sendall(bytes(accept_request_message, 'utf-8'))
+
+
+
+            # elif data.startswith('TO LEADER'):
+            #     operation = data.split(' ', 1)[1]
+            #     if self.leaderId == self.serverID:
+            #         self.log.append(operation)
+            #         self.accepted_proposal = (0, self.serverID, operation)
+            #         self.accepted_round = 0
+            #         self.accepted_value = operation
+            #         self.proposal_value = operation
+            #         self.num_of_promises = 1
+
+            #         # accept_message = 'ACCEPT ' + str((self.accepted_round, self.serverID, self.accepted_value))
+            #         accept_message = 'ACCEPT ' + str(ballot_number) + ' ' + str(accepted_value)
+            #         self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
+            #         self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
+            #         self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
+            #         self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
                 
 
             # elif data.startswith('PROMISE'):
@@ -217,36 +249,68 @@ class Server:
             #             client_socket.sendall(bytes(accept_message, 'utf-8'))
             #             # self.my_socket.sendall(bytes(accept_message, 'utf-8'))
 
+            elif data.startswith('ACCEPT-REQUEST'):
+                accept_data = data.split(' ', 2)
+                ballot_number = eval(accept_data[1])
+                if ballot_number[0] == self.promised_round:
+                    self.accepted_round = ballot_number[0]
+                    self.accepted_value = eval(accept_data[2])
+                    decision_message = 'ACCEPT ' + str(ballot_number) + ' ' + str(self.accepted_value)
+                    self.client1Sock.sendall(bytes(decision_message, 'utf-8'))
+                    self.client2Sock.sendall(bytes(decision_message, 'utf-8'))
+                    self.client3Sock.sendall(bytes(decision_message, 'utf-8'))
+                    self.client4Sock.sendall(bytes(decision_message, 'utf-8'))
+
+                # if self.is_higher_ballot_number(ballot_number):
+                    # accepted_value = eval(accept_data[2])
+                    # self.accepted_round = ballot_number
+                    # self.accepted_value = accepted_value
+                    # decision_message = 'DECISION ' + str(ballot_number) + ' ' + str(accepted_value)
+                    # for client_socket in self.clientSockets:
+                    #     client_socket.sendall(bytes(decision_message, 'utf-8'))
+                    # self.append_to_log(accepted_value)
+                    # self.apply_operation(accepted_value)
+                    # self.remove_pending_operation(accepted_value)
+
             elif data.startswith('ACCEPT'):
                 accept_data = data.split(' ', 2)
                 ballot_number = eval(accept_data[1])
-                if self.is_higher_ballot_number(ballot_number):
-                    accepted_value = eval(accept_data[2])
-                    self.accepted_round = ballot_number
-                    self.accepted_value = accepted_value
-                    decision_message = 'DECISION ' + str(ballot_number) + ' ' + str(accepted_value)
-                    for client_socket in self.clientSockets:
-                        client_socket.sendall(bytes(decision_message, 'utf-8'))
-                    self.append_to_log(accepted_value)
-                    self.apply_operation(accepted_value)
-                    self.remove_pending_operation(accepted_value)
+                if ballot_number[1] == self.serverID:
+                    self.num_of_promises += 1
+                    if self.num_of_accepts >3:
+                        print("DECISION MADE")
+                        accept_message = 'DECISION' + str(ballot_number) + ' ' + str(self.accepted_value)
+                        self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
+                        self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
+                        self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
+                        self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
+                        self.append_to_log(self.accepted_value)
+                        self.apply_operation(self.accepted_value)
+                        self.remove_pending_operation(self.accepted_value)
 
             elif data.startswith('DECISION'):
                 decision_data = data.split(' ', 2)
                 ballot_number = eval(decision_data[1])
                 decision_value = eval(decision_data[2])
-                if self.is_higher_ballot_number(ballot_number):
-                    self.append_to_log(decision_value)
-                    self.apply_operation(decision_value)
-                    self.remove_pending_operation(decision_value)
+                self.append_to_log(decision_value)
+                self.apply_operation(decision_value)
+                self.remove_pending_operation(decision_value)
 
     def is_higher_ballot_number(self, ballot_number):
-        if ballot_number[2] > len(self.log):
+
+        if ballot_number[0] > self.promised_round:
             return True
-        elif ballot_number[2] == len(self.log) and ballot_number[1] > self.serverID:
+        elif ballot_number[0] == self.promised_round and ballot_number[1] > self.serverID:
             return True
-        elif  ballot_number[0] > self.last_accepted_round:
-            return True
+        return False
+
+        # if ballot_number[2] > len(self.log):
+        #     return True
+        # elif ballot_number[2] == len(self.log) and ballot_number[1] > self.serverID:
+        #     return True
+        # elif  ballot_number[0] > self.last_accepted_round:
+        #     return True
+        
         # if ballot_number[2] > len(self.log):
         #     return True
         # elif ballot_number[2] == len(self.log) and ballot_number[1] > self.serverID:
