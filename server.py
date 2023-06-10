@@ -132,7 +132,7 @@ class Server:
                     self.client4Sock.sendall(bytes(prepare_message, 'utf-8'))
                 
                 else:
-                    accept_message = 'ACCEPT-REQUEST' + str(ballot_number) + ' ' + str(self.proposal_value)
+                    accept_message = 'ACCEPT-REQUEST ' + str(ballot_number) + ' ' + str(self.proposal_value)
                     print(("sending accept request"))
                     self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
                     self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
@@ -295,6 +295,7 @@ class Server:
                         self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
                         self.append_to_log(self.accepted_value)
                         self.apply_operation(self.accepted_value)
+                        self.num_of_accepts = 0
                         # self.remove_pending_operation(self.accepted_value)
 
             elif data.startswith('DECISION'):
