@@ -101,6 +101,24 @@ class Server:
             client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
             client_thread.start()
 
+    def send_to_all_clients(self, message):
+        try:
+            self.client1Sock.sendall(bytes(message, 'utf-8'))
+        except:
+            print("Client 1 not connected")
+        try:
+            self.client2Sock.sendall(bytes(message, 'utf-8'))
+        except:
+            print("Client 2 not connected")
+        try:
+            self.client3Sock.sendall(bytes(message, 'utf-8'))
+        except:
+            print("Client 3 not connected")
+        try:
+            self.client4Sock.sendall(bytes(message, 'utf-8'))
+        except:
+            print("Client 4 not connected")
+    
     def get_user_input(self):
         while True:
             user_input = input().lower()
@@ -125,19 +143,19 @@ class Server:
 
                 if not self.leaderId: #leader election
                     prepare_message = 'PREPARE ' + ballot_number
-                    print(prepare_message, " prepare message")
-                    self.client1Sock.sendall(bytes(prepare_message, 'utf-8'))
-                    self.client2Sock.sendall(bytes(prepare_message, 'utf-8'))
-                    self.client3Sock.sendall(bytes(prepare_message, 'utf-8'))
-                    self.client4Sock.sendall(bytes(prepare_message, 'utf-8'))
+                    print("SENT: ", prepare_message)
+                    sleep(3)
+                    # self.client1Sock.sendall(bytes(prepare_message, 'utf-8'))
+                    # self.client2Sock.sendall(bytes(prepare_message, 'utf-8'))
+                    # self.client3Sock.sendall(bytes(prepare_message, 'utf-8'))
+                    # self.client4Sock.sendall(bytes(prepare_message, 'utf-8'))
+                    self.send_to_all_clients(prepare_message)
                 
                 else:
                     accept_message = 'ACCEPT-REQUEST ' + str(ballot_number) + ' ' + str(self.proposal_value)
-                    print(("sending accept request"))
-                    self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
-                    self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
-                    self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
-                    self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
+                    print("SENT: ", accept_message)
+                    sleep(3)
+                    self.send_to_all_clients(accept_message)
 
 
                 # #send to leader then send accept
@@ -168,56 +186,92 @@ class Server:
                     print(self.blog.view_all_posts())
                 else:
                     print("BLOG EMPTY")
+
+            elif user_input.startswith('view'):
+                if len(self.blog.posts) > 0:
+                    print(self.blog.view_posts_by_user(user_input.split(' ', 1)[1]))
+                else:
+                    print("NO POST")
+
+            elif user_input.startswith('read'):
+                if len(self.blog.posts) > 0:
+                    title = user_input.split(' ', 1)[1]
+                    for post in self.blog.posts:
+                        if self.blog.posts[post]["title"] == title:
+                            print("CONTENT: ", self.blog.posts[post]["content"])
+                            if len(self.blog.posts[post]["comments"]) > 0:
+                                print("COMMENTS: ")
+                                for i in self.blog.posts[post]["comments"]:
+                                    print(i)
+                            break
+                        else:
+                            print("POST NOT FOUND")
+                else:
+                    print("POST NOT FOUND")
+
+            elif user_input.startswith('exit'):
+                print("exiting")
+                # self.serverSock.sendall(bytes(self.client_id + ': ' + user_input, 'utf-8'))
+                # self.serverSock.close()
+                # stdout.flush()
+                _exit(0)
                 
             #
             # handle "COMMENT"
             #
 
             else:
-                self.client1Sock.sendall(bytes(user_input, 'utf-8'))
-                self.client2Sock.sendall(bytes(user_input, 'utf-8'))
-                self.client3Sock.sendall(bytes(user_input, 'utf-8'))
-                self.client4Sock.sendall(bytes(user_input, 'utf-8'))
+                self.send_to_all_clients(user_input)
         
+    
 
     def handle_client(self, client_socket):
         while True:
             sleep(3)
             data = client_socket.recv(1024).decode()
-            print(data)
+            if data:
+                promise_data = data.split(' ', 2)
+                ballot_number = eval(promise_data[1])
+
+                if data.startswith("PROMISE") and ballot_number[1] != self.serverID:
+                    temp = 0
+                elif data.startswith("ACCEPT ") and ballot_number[1] != self.serverID:
+                    temp = 0
+                else:
+                    print("RECIEVED: ", data)
+
 
             if data.startswith('PREPARE'):
                 ballot_number = eval(data.split(' ', 1)[1])
-                print(ballot_number)
+                # print(ballot_number)
                 if self.is_higher_ballot_number(ballot_number):
                     self.leaderId = ballot_number[1]
                     self.promised_round = ballot_number[0]
                     ballot_number = str(ballot_number).replace(' ', '')
                     promise_message = 'PROMISE ' + ballot_number + ' ' + str(self.promised_round) 
-                    print("sending promise message: " + promise_message)
-                    self.client1Sock.sendall(bytes(promise_message, 'utf-8'))
-                    self.client2Sock.sendall(bytes(promise_message, 'utf-8'))
-                    self.client3Sock.sendall(bytes(promise_message, 'utf-8'))
-                    self.client4Sock.sendall(bytes(promise_message, 'utf-8'))
+                    print("SENT: ", promise_message)
+                    sleep(3)
+                    self.send_to_all_clients(promise_message)
 
             
             elif data.startswith('PROMISE'):
                 promise_data = data.split(' ', 2)
-                print(promise_data[1])
                 ballot_number = eval(promise_data[1])
 
                 if ballot_number[1] == self.serverID:
                     self.num_of_promises += 1
-                    if self.num_of_promises >3:
+                    if self.num_of_promises >=3:
+                        self.num_of_promises = 0
+                        sleep(3)
+                        print(self.num_of_promises)
                         self.leaderId = self.serverID
                         print("I AM THE LEADER")
-                        print("sending accept request")
                         # accept_request_message = 'ACCEPT-REQUEST ' + str(ballot_number) + ' ' + str(self.proposal_value)
                         accept_request_message = 'ACCEPT-REQUEST ' + promise_data[1] + ' ' + str(self.proposal_value)
-                        self.client1Sock.sendall(bytes(accept_request_message, 'utf-8'))
-                        self.client2Sock.sendall(bytes(accept_request_message, 'utf-8'))
-                        self.client3Sock.sendall(bytes(accept_request_message, 'utf-8'))
-                        self.client4Sock.sendall(bytes(accept_request_message, 'utf-8'))
+                        print("SENT: ",accept_request_message)
+                        sleep(3)
+                        self.send_to_all_clients(accept_request_message)
+                        
 
 
 
@@ -259,13 +313,11 @@ class Server:
                 if ballot_number[0] == self.promised_round:
                     self.accepted_round = ballot_number[0]
                     self.accepted_value = accept_data[2]
-                    print("sending accept message")
                     # decision_message = 'ACCEPT ' + str(ballot_number) + ' ' + str(self.accepted_value)
                     decision_message = 'ACCEPT ' + accept_data[1] + ' ' + str(self.accepted_value)
-                    self.client1Sock.sendall(bytes(decision_message, 'utf-8'))
-                    self.client2Sock.sendall(bytes(decision_message, 'utf-8'))
-                    self.client3Sock.sendall(bytes(decision_message, 'utf-8'))
-                    self.client4Sock.sendall(bytes(decision_message, 'utf-8'))
+                    print("SENT: ", decision_message)
+                    sleep(3)
+                    self.send_to_all_clients(decision_message)
 
                 # if self.is_higher_ballot_number(ballot_number):
                     # accepted_value = eval(accept_data[2])
@@ -284,18 +336,18 @@ class Server:
                 self.accepted_value = accept_data[2]
                 if ballot_number[1] == self.serverID:
                     self.num_of_accepts += 1
-                    print(" adding the num of promises ", self.num_of_accepts)
-                    if self.num_of_accepts >3:
+                    # print(" adding the num of promises ", self.num_of_accepts)
+                    if self.num_of_accepts >=3:
+                        self.num_of_accepts = 0
+                        sleep(3)
                         print("DECISION MADE to be ",self.accepted_value)
                         # accept_message = 'DECISION ' + str(ballot_number) + ' ' + str(self.accepted_value)
                         accept_message = 'DECISION ' + accept_data[1] + ' ' + str(self.accepted_value)
-                        self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
-                        self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
-                        self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
-                        self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
+                        print("SENT: ", accept_message)
+                        self.send_to_all_clients(accept_message)
                         self.append_to_log(self.accepted_value)
                         self.apply_operation(self.accepted_value)
-                        self.num_of_accepts = 0
+                        
                         # self.remove_pending_operation(self.accepted_value)
 
             elif data.startswith('DECISION'):
