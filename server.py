@@ -5,6 +5,7 @@ from time import sleep
 from os import _exit
 from sys import stdout
 from typing import Any
+import operator as op
 
 class Blog:
     def __init__(self):
@@ -71,6 +72,8 @@ class Server:
         self.num_of_promises = 0
         self.num_of_accepts = 0
         self.my_round = 1
+        self.sent_accept_request = False
+        self.sent_decision = False
 
         self.my_socket = None
         self.clientSockets = []
@@ -151,6 +154,12 @@ class Server:
                     # self.client4Sock.sendall(bytes(prepare_message, 'utf-8'))
                     self.send_to_all_clients(prepare_message)
                 
+                elif self.leaderId != self.serverID: 
+                    to_leader_message = 'TO-LEADER ' + str(ballot_number) + ' ' + str(self.proposal_value)
+                    print("SENT: ", to_leader_message)
+                    sleep(3)
+                    self.send_to_all_clients(to_leader_message)
+                
                 else:
                     accept_message = 'ACCEPT-REQUEST ' + str(ballot_number) + ' ' + str(self.proposal_value)
                     print("SENT: ", accept_message)
@@ -229,13 +238,13 @@ class Server:
         while True:
             sleep(3)
             data = client_socket.recv(1024).decode()
-            if data:
+            if data and op.countOf(data, " ") > 0:
                 promise_data = data.split(' ', 2)
                 ballot_number = eval(promise_data[1])
 
                 if data.startswith("PROMISE") and ballot_number[1] != self.serverID:
                     temp = 0
-                elif data.startswith("ACCEPT ") and ballot_number[1] != self.serverID:
+                elif data.startswith("ACCEPT ") and self.leaderId != self.serverID:
                     temp = 0
                 else:
                     print("RECIEVED: ", data)
@@ -260,8 +269,9 @@ class Server:
 
                 if ballot_number[1] == self.serverID:
                     self.num_of_promises += 1
-                    if self.num_of_promises >=3:
+                    if self.num_of_promises >=2 and not self.sent_accept_request:
                         self.num_of_promises = 0
+                        self.sent_accept_request = True
                         sleep(3)
                         print(self.num_of_promises)
                         self.leaderId = self.serverID
@@ -271,7 +281,19 @@ class Server:
                         print("SENT: ",accept_request_message)
                         sleep(3)
                         self.send_to_all_clients(accept_request_message)
-                        
+                        self.sent_accept_request = False
+
+            elif data.startswith('TO-LEADER'):
+                toLeaderData = data.split(' ', 2)
+                ballot_number = eval(toLeaderData[1])
+                self.proposal_value = toLeaderData[2]
+
+                if self.leaderId == self.serverID:
+                    accept_request_message = 'ACCEPT-REQUEST ' + promise_data[1] + ' ' + str(self.proposal_value)
+                    print("SENT: ",accept_request_message)
+                    sleep(3)
+                    self.send_to_all_clients(accept_request_message)
+                    
 
 
 
@@ -334,19 +356,23 @@ class Server:
                 accept_data = data.split(' ', 2)
                 ballot_number = eval(accept_data[1])
                 self.accepted_value = accept_data[2]
-                if ballot_number[1] == self.serverID:
+                # if ballot_number[1] == self.serverID:
+                if self.leaderId == self.serverID:
                     self.num_of_accepts += 1
                     # print(" adding the num of promises ", self.num_of_accepts)
-                    if self.num_of_accepts >=3:
+                    if self.num_of_accepts >=2 and not self.sent_decision:
                         self.num_of_accepts = 0
+                        self.sent_decision = True
                         sleep(3)
                         print("DECISION MADE to be ",self.accepted_value)
                         # accept_message = 'DECISION ' + str(ballot_number) + ' ' + str(self.accepted_value)
                         accept_message = 'DECISION ' + accept_data[1] + ' ' + str(self.accepted_value)
                         print("SENT: ", accept_message)
+                        sleep(3)
                         self.send_to_all_clients(accept_message)
                         self.append_to_log(self.accepted_value)
                         self.apply_operation(self.accepted_value)
+                        self.sent_decision = False
                         
                         # self.remove_pending_operation(self.accepted_value)
 
