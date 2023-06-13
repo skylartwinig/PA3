@@ -80,6 +80,7 @@ class Server:
         self.sent_accept_request = False
         self.sent_decision = False
         self.acceptor_waiting_on_decision = False
+        self.in_progress = False
         
 
         self.my_socket = None
@@ -111,21 +112,22 @@ class Server:
                 line = line.replace("'", "")
                 line = line.replace("[", "")
                 line = line.replace("]", "")
-                print(line)
                 temp = line.split(", ")
                 round = int(temp[0])
                 hash = temp[1]
                 compressed = temp[2]
-                print(compressed)
                 list_of_operations = []
                 list_of_operations.append(temp[3])
                 list_of_operations.append(temp[4])
                 list_of_operations.append(temp[5])
                 list_of_operations.append(temp[6])
-                print(list_of_operations)
                 nonce = temp[7]
                 log_entry = (round, hash, compressed, list_of_operations, nonce)
                 self.log.append(log_entry)
+                operation = ""
+                for i in list_of_operations:
+                    operation += i + " "
+                self.apply_operation(operation)
 
         terminal = threading.Thread(target=self.get_user_input)
         terminal.start()
@@ -302,24 +304,31 @@ class Server:
 
             elif user_input.startswith('post') or user_input.startswith('comment'):
                 operation = user_input
-                self.pending_operations.append(operation)
+                # self.pending_operations.append(operation)
                 self.proposal_value = operation
                 ballot_number = (self.my_round, self.serverID, len(self.log))
                 ballot_number = str(ballot_number).replace(' ', '')
 
-                if not self.leaderId: #leader election
+                if self.in_progress:
+                    print("Already in progress")
+                    self.pending_operations.append(operation)
+
+                elif not self.leaderId: #leader election
                     prepare_message = 'PREPARE ' + ballot_number
                     print("SENT: ", prepare_message)
+                    self.in_progress = True
                     sleep(3)
                     self.send_to_all_clients(prepare_message)
                 
                 elif self.leaderId != self.serverID: 
+                    self.in_progress = True
                     to_leader_message = 'TO-LEADER ' + str(ballot_number) + ' ' + str(self.proposal_value)
                     print("SENT: ", to_leader_message)
                     sleep(3)
                     self.send_to_all_clients(to_leader_message)
                 
                 else:
+                    self.in_progress = True
                     accept_message = 'ACCEPT-REQUEST ' + str(ballot_number) + ' ' + str(self.proposal_value)
                     print("SENT: ", accept_message)
                     sleep(3)
@@ -414,6 +423,7 @@ class Server:
                 self.client4Sock.connect(self.clientSockPortList[3])
 
             if data.startswith('PREPARE'):
+                self.in_progress = True
                 ballot_number = eval(data.split(' ', 1)[1])
                 # print(ballot_number)
                 if self.is_higher_ballot_number(ballot_number):
@@ -436,7 +446,7 @@ class Server:
                         self.num_of_promises = 0
                         self.sent_accept_request = True
                         sleep(3)
-                        print(self.num_of_promises)
+                        print("")
                         self.leaderId = self.serverID
                         print("I AM THE LEADER")
                         # accept_request_message = 'ACCEPT-REQUEST ' + str(ballot_number) + ' ' + str(self.proposal_value)
@@ -447,6 +457,7 @@ class Server:
                         self.sent_accept_request = False
 
             elif data.startswith('TO-LEADER'):
+                self.in_progress = True
                 toLeaderData = data.split(' ', 2)
                 ballot_number = eval(toLeaderData[1])
                 self.proposal_value = toLeaderData[2]
@@ -458,6 +469,7 @@ class Server:
                     self.send_to_all_clients(accept_request_message)   
 
             elif data.startswith('ACCEPT-REQUEST'):
+                self.in_progress = True
                 accept_data = data.split(' ', 2)
                 ballot_number = eval(accept_data[1])
                 if ballot_number[0] == self.promised_round:
@@ -509,8 +521,8 @@ class Server:
                         self.apply_operation(self.accepted_value)
                         self.sent_decision = False
                         self.leader_to_disk()
-                        
-                        # self.remove_pending_operation(self.accepted_value)
+                        self.in_progress = False
+                        self.handle_pending_operation(self.accepted_value)
 
             elif data.startswith('DECISION'):
                 self.acceptor_waiting_on_decision = False
@@ -521,7 +533,8 @@ class Server:
                 self.append_to_log(decision_value)
                 self.apply_operation(decision_value)
                 self.acceptor_to_disk_final()
-                # self.remove_pending_operation(decision_value)
+                self.in_progress = False
+                self.handle_pending_operation(decision_value)
 
     def leader_to_disk(self):
         filename = "recovery_file_" + str(self.serverID) + ".txt" 
@@ -546,9 +559,7 @@ class Server:
     def acceptor_to_disk_final(self):
         filename = "recovery_file_" + str(self.serverID) + ".txt" 
         lines = open(filename, 'r').readlines()
-        print(lines)
         lines[-1] = str(self.log[-1]) + "\n"
-        print(lines)
         f = open(filename, "w")
         for i in lines:
             f.write(i)
@@ -625,8 +636,27 @@ class Server:
             comment = operation_data[3]
             self.blog.comment_on_post(username, title, comment)
 
-    def remove_pending_operation(self, operation):
-        self.pending_operations.remove(operation)
+    def handle_pending_operation(self, operation):
+        if len(self.pending_operations) > 0:
+            operation = self.pending_operations[0]
+            self.proposal_value = operation
+            ballot_number = (self.my_round, self.serverID, len(self.log))
+            ballot_number = str(ballot_number).replace(' ', '')
+            self.pending_operations.pop(0)
+
+            if self.leaderId != self.serverID: 
+                self.in_progress = True
+                to_leader_message = 'TO-LEADER ' + str(ballot_number) + ' ' + str(self.proposal_value)
+                print("SENT: ", to_leader_message)
+                sleep(3)
+                self.send_to_all_clients(to_leader_message)
+                    
+            else:
+                self.in_progress = True
+                accept_message = 'ACCEPT-REQUEST ' + str(ballot_number) + ' ' + str(self.proposal_value)
+                print("SENT: ", accept_message)
+                sleep(3)
+                self.send_to_all_clients(accept_message)   
 
 
 if __name__ == '__main__':
