@@ -136,8 +136,138 @@ class Server:
                 self.client4Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.client4Sock.connect(self.clientSockPortList[3])
 
+            elif user_input.startswith('faillink'):
+                print("in fail link")
+                open_index = user_input.find('(')
+                close_index = user_input.find(')')
+                node_to_fail = int(user_input[open_index + 1:close_index])
+                print(node_to_fail)
+                if node_to_fail == self.serverID:
+                    print("Cannot fail self")
+                elif self.serverID == 1:
+                    if node_to_fail == 2:
+                        self.client1Sock.close()
+                    elif node_to_fail == 3:
+                        self.client2Sock.close()
+                    elif node_to_fail == 4:
+                        self.client3Sock.close()
+                    elif node_to_fail == 5:
+                        self.client4Sock.close()
+                        print("closed client 4")
+                elif self.serverID == 2:
+                    if node_to_fail == 1:
+                        self.client1Sock.close()
+                    elif node_to_fail == 3:
+                        self.client2Sock.close()
+                    elif node_to_fail == 4:
+                        self.client3Sock.close()
+                    elif node_to_fail == 5:
+                        self.client4Sock.close()
+                elif self.serverID == 3:
+                    if node_to_fail == 1:
+                        self.client1Sock.close()
+                    elif node_to_fail == 2:
+                        self.client2Sock.close()
+                    elif node_to_fail == 4:
+                        self.client3Sock.close()
+                    elif node_to_fail == 5:
+                        self.client4Sock.close()
+                elif self.serverID == 4:
+                    if node_to_fail == 1:
+                        self.client1Sock.close()
+                    elif node_to_fail == 2:
+                        self.client2Sock.close()
+                    elif node_to_fail == 3:
+                        self.client3Sock.close()
+                    elif node_to_fail == 5:
+                        self.client4Sock.close()
+                elif self.serverID == 5:
+                    if node_to_fail == 1:
+                        self.client1Sock.close()
+                    elif node_to_fail == 2:
+                        self.client2Sock.close()
+                    elif node_to_fail == 3:
+                        self.client3Sock.close()
+                    elif node_to_fail == 4:
+                        self.client4Sock.close()
+                
+            
+            elif user_input.startswith('fixlink'):
+                open_index = user_input.find('(')
+                close_index = user_input.find(')')
+                node_to_fail = int(user_input[open_index + 1:close_index])
+                if node_to_fail == self.serverID:
+                    print("Cannot fail self")
+                elif self.serverID == 1:
+                    if node_to_fail == 2:
+                        self.client1Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client1Sock.connect(self.clientSockPortList[0])
+                    elif node_to_fail == 3:
+                        self.client2Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client2Sock.connect(self.clientSockPortList[1])
+                    elif node_to_fail == 4:
+                        self.client3Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client3Sock.connect(self.clientSockPortList[2])
+                    elif node_to_fail == 5:
+                        self.client4Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client4Sock.connect(self.clientSockPortList[3])
+                        self.client4Sock.sendall(bytes("reconnect", 'utf-8'))
+                elif self.serverID == 2:
+                    if node_to_fail == 1:
+                        self.client1Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client1Sock.connect(self.clientSockPortList[0])
+                    elif node_to_fail == 3:
+                        self.client2Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client2Sock.connect(self.clientSockPortList[1])
+                    elif node_to_fail == 4:
+                        self.client3Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client3Sock.connect(self.clientSockPortList[2])
+                    elif node_to_fail == 5:
+                        self.client4Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client4Sock.connect(self.clientSockPortList[3])
+                elif self.serverID == 3:
+                    if node_to_fail == 1:
+                        self.client1Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client1Sock.connect(self.clientSockPortList[0])
+                    elif node_to_fail == 2:
+                        self.client2Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client2Sock.connect(self.clientSockPortList[1])
+                    elif node_to_fail == 4:
+                        self.client3Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client3Sock.connect(self.clientSockPortList[2])
+                    elif node_to_fail == 5:
+                        self.client4Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client4Sock.connect(self.clientSockPortList[3])
+                elif self.serverID == 4:
+                    if node_to_fail == 1:
+                        self.client1Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client1Sock.connect(self.clientSockPortList[0])
+                    elif node_to_fail == 2:
+                        self.client2Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client2Sock.connect(self.clientSockPortList[1])
+                    elif node_to_fail == 3:
+                        self.client3Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client3Sock.connect(self.clientSockPortList[2])
+                    elif node_to_fail == 5:
+                        self.client4Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client4Sock.connect(self.clientSockPortList[3])
+                elif self.serverID == 5:
+                    if node_to_fail == 1:
+                        self.client1Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client1Sock.connect(self.clientSockPortList[0])
+                    elif node_to_fail == 2:
+                        self.client2Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client2Sock.connect(self.clientSockPortList[1])
+                    elif node_to_fail == 3:
+                        self.client3Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client3Sock.connect(self.clientSockPortList[2])
+                    elif node_to_fail == 4:
+                        self.client4Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.client4Sock.connect(self.clientSockPortList[3])
+
+
+
             elif user_input.startswith('post'):
-                # operation = user_input.split(' ', 1)[1]
                 operation = user_input
                 self.pending_operations.append(operation)
                 self.proposal_value = operation
@@ -148,10 +278,6 @@ class Server:
                     prepare_message = 'PREPARE ' + ballot_number
                     print("SENT: ", prepare_message)
                     sleep(3)
-                    # self.client1Sock.sendall(bytes(prepare_message, 'utf-8'))
-                    # self.client2Sock.sendall(bytes(prepare_message, 'utf-8'))
-                    # self.client3Sock.sendall(bytes(prepare_message, 'utf-8'))
-                    # self.client4Sock.sendall(bytes(prepare_message, 'utf-8'))
                     self.send_to_all_clients(prepare_message)
                 
                 elif self.leaderId != self.serverID: 
@@ -164,31 +290,7 @@ class Server:
                     accept_message = 'ACCEPT-REQUEST ' + str(ballot_number) + ' ' + str(self.proposal_value)
                     print("SENT: ", accept_message)
                     sleep(3)
-                    self.send_to_all_clients(accept_message)
-
-
-                # #send to leader then send accept
-                # if self.leaderId == self.serverID: #if leader send accept messages to all
-                #     self.log.append(operation)
-                #     self.accepted_proposal = (0, self.serverID, operation)
-                #     self.accepted_round = 0
-                #     self.accepted_value = operation
-                #     self.proposal_value = operation
-                #     self.num_of_promises = 0
-
-                #     # accept_message = 'ACCEPT ' + str((self.accepted_round, self.serverID, self.accepted_value))
-                #     accept_message = 'ACCEPT ' + str(ballot_number) + ' ' + str(accepted_value)
-                #     self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
-                #     self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
-                #     self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
-                #     self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
-                # else: #if not leader then send the message to the leader
-                #     accept_message = 'TO LEADER ' + str((self.accepted_round, self.serverID, self.accepted_value))
-                #     self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
-                #     self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
-                #     self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
-                #     self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
-                
+                    self.send_to_all_clients(accept_message)         
 
             elif user_input.startswith('blog'):
                 if len(self.blog.posts) > 0:
@@ -237,7 +339,10 @@ class Server:
     def handle_client(self, client_socket):
         while True:
             sleep(3)
-            data = client_socket.recv(1024).decode()
+            try:
+                data = client_socket.recv(1024).decode()
+            except:
+                continue
             if data and op.countOf(data, " ") > 0:
                 promise_data = data.split(' ', 2)
                 ballot_number = eval(promise_data[1])
@@ -249,6 +354,15 @@ class Server:
                 else:
                     print("RECIEVED: ", data)
 
+            if data.startswith('reconnect'):
+                self.client1Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.client1Sock.connect(self.clientSockPortList[0])
+                self.client2Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.client2Sock.connect(self.clientSockPortList[1])
+                self.client3Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.client3Sock.connect(self.clientSockPortList[2])
+                self.client4Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.client4Sock.connect(self.clientSockPortList[3])
 
             if data.startswith('PREPARE'):
                 ballot_number = eval(data.split(' ', 1)[1])
@@ -292,42 +406,7 @@ class Server:
                     accept_request_message = 'ACCEPT-REQUEST ' + promise_data[1] + ' ' + str(self.proposal_value)
                     print("SENT: ",accept_request_message)
                     sleep(3)
-                    self.send_to_all_clients(accept_request_message)
-                    
-
-
-
-            # elif data.startswith('TO LEADER'):
-            #     operation = data.split(' ', 1)[1]
-            #     if self.leaderId == self.serverID:
-            #         self.log.append(operation)
-            #         self.accepted_proposal = (0, self.serverID, operation)
-            #         self.accepted_round = 0
-            #         self.accepted_value = operation
-            #         self.proposal_value = operation
-            #         self.num_of_promises = 1
-
-            #         # accept_message = 'ACCEPT ' + str((self.accepted_round, self.serverID, self.accepted_value))
-            #         accept_message = 'ACCEPT ' + str(ballot_number) + ' ' + str(accepted_value)
-            #         self.client1Sock.sendall(bytes(accept_message, 'utf-8'))
-            #         self.client2Sock.sendall(bytes(accept_message, 'utf-8'))
-            #         self.client3Sock.sendall(bytes(accept_message, 'utf-8'))
-            #         self.client4Sock.sendall(bytes(accept_message, 'utf-8'))
-                
-
-            # elif data.startswith('PROMISE'):
-            #     promise_data = data.split(' ', 3)
-            #     ballot_number = eval(promise_data[1])
-            #     # if self.is_higher_ballot_number(ballot_number) and self.promised_round == ballot_number:
-            #     if ballot_number[1] == self.serverID:
-            #         accepted_round = eval(promise_data[2]+1)
-            #         accepted_value = eval(promise_data[3])
-            #         if accepted_round > self.last_accepted_round:
-            #             self.last_accepted_round = accepted_round
-            #             self.accepted_value = accepted_value
-            #             accept_message = 'ACCEPT ' + str(ballot_number) + ' ' + str(accepted_value)
-            #             client_socket.sendall(bytes(accept_message, 'utf-8'))
-            #             # self.my_socket.sendall(bytes(accept_message, 'utf-8'))
+                    self.send_to_all_clients(accept_request_message)   
 
             elif data.startswith('ACCEPT-REQUEST'):
                 accept_data = data.split(' ', 2)
