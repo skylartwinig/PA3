@@ -22,6 +22,7 @@ class Blog:
             'comments': []
         }
         self.posts[post_id] = post
+        print("NEW POST ",title, " from ", username)
 
     def comment_on_post(self, username, title, comment):
         for post in self.posts.values():
@@ -34,6 +35,7 @@ class Blog:
                 }
                 post['comments'].append(new_comment)
                 self.comments[comment_id] = new_comment
+                print("NEW COMMENT ",title, " from ", username)
                 break
 
     def view_all_posts(self):
@@ -74,6 +76,8 @@ class Server:
         self.my_round = 1
         self.sent_accept_request = False
         self.sent_decision = False
+        self.acceptor_waiting_on_decision = False
+        
 
         self.my_socket = None
         self.clientSockets = []
@@ -267,7 +271,7 @@ class Server:
 
 
 
-            elif user_input.startswith('post'):
+            elif user_input.startswith('post') or user_input.startswith('comment'):
                 operation = user_input
                 self.pending_operations.append(operation)
                 self.proposal_value = operation
@@ -320,7 +324,7 @@ class Server:
                 else:
                     print("POST NOT FOUND")
 
-            elif user_input.startswith('exit'):
+            elif user_input.startswith('crash'):
                 print("exiting")
                 # self.serverSock.sendall(bytes(self.client_id + ': ' + user_input, 'utf-8'))
                 # self.serverSock.close()
@@ -419,6 +423,9 @@ class Server:
                     print("SENT: ", decision_message)
                     sleep(3)
                     self.send_to_all_clients(decision_message)
+                    self.acceptor_waiting_on_decision = True
+                    timeout_thread = threading.Thread(target= self.timeout)
+                    timeout_thread.start()
 
                 # if self.is_higher_ballot_number(ballot_number):
                     # accepted_value = eval(accept_data[2])
@@ -456,6 +463,7 @@ class Server:
                         # self.remove_pending_operation(self.accepted_value)
 
             elif data.startswith('DECISION'):
+                self.acceptor_waiting_on_decision = False
                 print("received decision")
                 decision_data = data.split(' ', 2)
                 ballot_number = eval(decision_data[1])
@@ -463,6 +471,11 @@ class Server:
                 self.append_to_log(decision_value)
                 self.apply_operation(decision_value)
                 # self.remove_pending_operation(decision_value)
+    
+    def timeout(self):
+        sleep(10)
+        if self.acceptor_waiting_on_decision:
+            print("TIMEOUT")
 
     def is_higher_ballot_number(self, ballot_number):
 
