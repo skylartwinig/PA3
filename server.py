@@ -6,6 +6,9 @@ from os import _exit
 from sys import stdout
 from typing import Any
 import operator as op
+import hashlib
+import os
+from pathlib import Path
 
 class Blog:
     def __init__(self):
@@ -97,6 +100,32 @@ class Server:
         self.my_socket.listen()
 
         print(self.my_socket)
+
+        filename = "recovery_file_" + str(self.serverID) + ".txt" 
+        my_file = Path(filename)
+        if my_file.is_file():
+            lines = open(filename, 'r').readlines()
+            for line in lines:
+                line = line.strip("\n")
+                line = line.strip("()")
+                line = line.replace("'", "")
+                line = line.replace("[", "")
+                line = line.replace("]", "")
+                print(line)
+                temp = line.split(", ")
+                round = int(temp[0])
+                hash = temp[1]
+                compressed = temp[2]
+                print(compressed)
+                list_of_operations = []
+                list_of_operations.append(temp[3])
+                list_of_operations.append(temp[4])
+                list_of_operations.append(temp[5])
+                list_of_operations.append(temp[6])
+                print(list_of_operations)
+                nonce = temp[7]
+                log_entry = (round, hash, compressed, list_of_operations, nonce)
+                self.log.append(log_entry)
 
         terminal = threading.Thread(target=self.get_user_input)
         terminal.start()
@@ -309,6 +338,7 @@ class Server:
                     print("NO POST")
 
             elif user_input.startswith('read'):
+                self.append_to_log(user_input)
                 if len(self.blog.posts) > 0:
                     title = user_input.split(' ', 1)[1]
                     for post in self.blog.posts:
@@ -323,6 +353,21 @@ class Server:
                             print("POST NOT FOUND")
                 else:
                     print("POST NOT FOUND")
+
+            elif user_input.startswith('log'):
+                print(self.log)
+
+            elif user_input.startswith('blockchain'):
+                for event in self.log:
+                    eventData = event[3]
+                    print('Length of log:' + str(event[0]))
+                    print('Previous Hash: ' + event[1])
+                    print('Operation Compressed: ' + str(event[2]))
+                    if(eventData[0].startswith('read')):
+                        print(eventData[0],eventData[1])
+                    else:
+                        print(eventData[0],eventData[1],eventData[2],eventData[3])
+                    print('Nonce: ' + str(event[4]))
 
             elif user_input.startswith('crash'):
                 print("exiting")
@@ -421,11 +466,15 @@ class Server:
                     # decision_message = 'ACCEPT ' + str(ballot_number) + ' ' + str(self.accepted_value)
                     decision_message = 'ACCEPT ' + accept_data[1] + ' ' + str(self.accepted_value)
                     print("SENT: ", decision_message)
+                    self.append_to_log(self.accepted_value)
+                    self.acceptor_to_disk_tenative()
+                    self.log.pop()
                     sleep(3)
                     self.send_to_all_clients(decision_message)
                     self.acceptor_waiting_on_decision = True
                     timeout_thread = threading.Thread(target= self.timeout)
                     timeout_thread.start()
+                    
 
                 # if self.is_higher_ballot_number(ballot_number):
                     # accepted_value = eval(accept_data[2])
@@ -459,6 +508,7 @@ class Server:
                         self.append_to_log(self.accepted_value)
                         self.apply_operation(self.accepted_value)
                         self.sent_decision = False
+                        self.leader_to_disk()
                         
                         # self.remove_pending_operation(self.accepted_value)
 
@@ -470,8 +520,41 @@ class Server:
                 decision_value = decision_data[2]
                 self.append_to_log(decision_value)
                 self.apply_operation(decision_value)
+                self.acceptor_to_disk_final()
                 # self.remove_pending_operation(decision_value)
+
+    def leader_to_disk(self):
+        filename = "recovery_file_" + str(self.serverID) + ".txt" 
+        if len(self.log) == 1:
+            f = open(filename, "w")
+        else:
+            f = open(filename, "a")
+        f.write(str(self.log[-1]))
+        f.write("\n")
+        f.close()
     
+    def acceptor_to_disk_tenative(self):
+        filename = "recovery_file_" + str(self.serverID) + ".txt" 
+        if len(self.log) == 1:
+            f = open(filename, "w")
+        else:
+            f = open(filename, "a")
+        f.write(str(self.log[-1]) + " TENATIVE")
+        f.write("\n")
+        f.close()
+
+    def acceptor_to_disk_final(self):
+        filename = "recovery_file_" + str(self.serverID) + ".txt" 
+        lines = open(filename, 'r').readlines()
+        print(lines)
+        lines[-1] = str(self.log[-1]) + "\n"
+        print(lines)
+        f = open(filename, "w")
+        for i in lines:
+            f.write(i)
+        f.close()
+
+
     def timeout(self):
         sleep(10)
         if self.acceptor_waiting_on_decision:
@@ -501,7 +584,32 @@ class Server:
         return False
 
     def append_to_log(self, operation):
-        self.log.append(operation)
+        if operation.startswith('post') or operation.startswith('comment') :
+            operation_data = operation.split(' ')
+            op = f'{operation_data[0]}{operation_data[1]}{operation_data[2]}{operation_data[3]}'
+            self.block_op(op, operation_data)
+
+        elif operation.startswith('read'):
+            operation_data = operation.split(' ')
+            op = f'{operation_data[0]}{operation_data[1]}'
+            self.block_op(op, operation_data)
+        
+
+    def block_op(self, operation, opData):
+        if(self.log == []):
+            prevHash = '0' * 64
+        else:
+            prevHash = hashlib.sha256((f'{self.log[len(self.log)-1][2]}').encode()).hexdigest().zfill(64)
+        found, nonce = False, 0
+        while not found:
+            m = hashlib.sha256((f'{prevHash}{operation}{nonce}').encode())
+            dig = m.hexdigest().zfill(64)
+            if str(dig)[0] in ["0", "1", "2", "3"]:
+                self.last = 0
+                self.log.append((len(self.log), prevHash, operation, opData,  nonce))
+                found = True
+            else:
+                nonce += 1
 
     def apply_operation(self, operation):
         if operation.startswith('post'):
